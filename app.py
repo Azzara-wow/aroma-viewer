@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import html
 from urllib.parse import urlparse, parse_qs
 st.set_page_config(
     page_title="Закупка ароматов",
@@ -147,84 +148,54 @@ if user_name and "planned_ml" not in st.session_state:
     st.session_state.planned_ml = {}
 
 if user_name:
-    # 1. загружаем сырые данные
     df_raw = load_data(SHEET_URL)
-    # 2. готовим v1 DataFrame
     v1_df = prepare_v1_dataframe(df_raw, user_name)
-    # считаем суммы
+
     current_sum, planned_sum = calculate_sums(v1_df)
 
-    # 5. рисуем шапку
     st.markdown(
         f"""
-        <div class="sticky-header">
-            <div class="header-row">
-                <div class="header-item">
-                    👤<br><b>{user_name}</b>
-                </div>
-                <div class="header-item">
-                    💰<br><b>{current_sum:.0f} ₽</b>
-                </div>
-                <div class="header-item">
-                    ➕<br><b>{planned_sum:.0f} ₽</b>
-                </div>
-            </div>
-        </div>
-        """,
+<div class="sticky-header">
+    <div class="header-row">
+        <div class="header-item">👤<br><b>{user_name}</b></div>
+        <div class="header-item">💰<br><b>{current_sum:.0f} ₽</b></div>
+        <div class="header-item">➕<br><b>{planned_sum:.0f} ₽</b></div>
+    </div>
+</div>
+""",
         unsafe_allow_html=True
     )
 
-
     for _, row in v1_df.iterrows():
         ordered_ml = int(row["ordered_ml"])
-        gender = row["gender"]
+        gender = str(row["gender"])
         price = int(row["price_10"]) if row["price_10"] > 0 else None
 
-        if ordered_ml > 0:
-            bg_color = "#1f3b2d"
-        else:
-            bg_color = "#0e1117"
+        bg_color = "#1f3b2d" if ordered_ml > 0 else "#0e1117"
 
         if view_mode == "Обзор":
-            right_text = f"{gender} · {price} ₽" if price else gender
-        else:  # "Моё"
-            right_text = f"{price} ₽ · {ordered_ml} мл" if price else f"{ordered_ml} мл"
+            right_text = f"{gender} · {price} ₽" if price is not None else gender
+        else:
+            right_text = f"{price} ₽ · {ordered_ml} мл" if price is not None else f"{ordered_ml} мл"
 
         st.markdown(
             f"""
-            <div style="
-                display: flex;
-                align-items: center;
-                background-color: {bg_color};
-                padding: 10px 12px;
-                margin-bottom: 6px;
-                border-radius: 8px;
-                gap: 10px;
-            ">
-                <div style="
-                    flex: 1;
-                    font-weight: 500;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                ">
-                    {row["aroma_name"]}
-                </div>
-
-                <div style="
-                    white-space: nowrap;
-                    font-size: 0.9em;
-                    opacity: 0.85;
-                ">
-                    {right_text}
-                </div>
-            </div>
-            """,
+<div style="background-color:{bg_color}; padding:10px 12px; margin-bottom:6px; border-radius:8px; display:flex; align-items:center; gap:10px;">
+    <div style="flex:1; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+        {row["aroma_name"]}
+    </div>
+    <div style="white-space:nowrap; font-size:0.9em; opacity:0.85;">
+        {right_text}
+    </div>
+</div>
+""",
             unsafe_allow_html=True
         )
 
 else:
     st.info("Введите имя, чтобы загрузить данные")
+
+
 
 
 
