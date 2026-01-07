@@ -18,6 +18,9 @@ st.markdown(
         padding: 0.75rem 1rem;
         border-bottom: 1px solid #333;
     }
+    .list-container {
+    padding-top: 10px;
+    }
     .header-row {
         display: flex;
         justify-content: space-between;
@@ -165,9 +168,18 @@ if user_name:
 """,
         unsafe_allow_html=True
     )
+    st.markdown('<div class="list-container">', unsafe_allow_html=True)
 
     for _, row in v1_df.iterrows():
         ordered_ml = int(row["ordered_ml"])
+        row_id = row["row_id"]
+        planned_ml = st.session_state.planned_ml.get(row_id, 0)
+
+        # 🔥 РЕЖИМ "МОЁ"
+        if view_mode == "Моё":
+            if ordered_ml == 0 and planned_ml == 0:
+                continue  # ← просто пропускаем строку
+
         gender = str(row["gender"])
         price = int(row["price_10"]) if row["price_10"] > 0 else None
 
@@ -176,22 +188,23 @@ if user_name:
         if view_mode == "Обзор":
             right_text = f"{gender} · {price} ₽" if price is not None else gender
         else:
-            right_text = f"{price} ₽ · {ordered_ml} мл" if price is not None else f"{ordered_ml} мл"
-
+            right_text = f"{price} ₽ · {ordered_ml + planned_ml} мл" if price is not None else f"{ordered_ml + planned_ml} мл"
+#padding:6px 10px; margin-bottom:3px межстрочный интервал
         st.markdown(
             f"""
-<div style="background-color:{bg_color}; padding:10px 12px; margin-bottom:6px; border-radius:8px; display:flex; align-items:center; gap:10px;">
-    <div style="flex:1; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-        {row["aroma_name"]}
+    <div style="background-color:{bg_color}; padding:6px 10px; margin-bottom:3px; border-radius:8px; display:flex; align-items:center; gap:10px;">
+        <div style="flex:1; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            {row["aroma_name"]}
+        </div>
+        <div style="white-space:nowrap; font-size:0.9em; opacity:0.85;">
+            {right_text}
+        </div>
     </div>
-    <div style="white-space:nowrap; font-size:0.9em; opacity:0.85;">
-        {right_text}
-    </div>
-</div>
-""",
+    """,
             unsafe_allow_html=True
         )
 
+    st.markdown('</div>', unsafe_allow_html=True)
 else:
     st.info("Введите имя, чтобы загрузить данные")
 
