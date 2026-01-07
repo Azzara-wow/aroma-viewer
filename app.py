@@ -137,6 +137,12 @@ user_name = st.text_input(
     value=""
 )
 
+view_mode = st.radio(
+    "Отображение",
+    ["Обзор", "Моё"],
+    horizontal=True
+)
+
 if user_name and "planned_ml" not in st.session_state:
     st.session_state.planned_ml = {}
 
@@ -145,7 +151,7 @@ if user_name:
     df_raw = load_data(SHEET_URL)
     # 2. готовим v1 DataFrame
     v1_df = prepare_v1_dataframe(df_raw, user_name)
-   # считаем суммы
+    # считаем суммы
     current_sum, planned_sum = calculate_sums(v1_df)
 
     # 5. рисуем шапку
@@ -168,42 +174,59 @@ if user_name:
         unsafe_allow_html=True
     )
 
-    # 6. ТОЛЬКО отрисовка строк + кнопки
+
     for _, row in v1_df.iterrows():
-        row_id = row["row_id"]
+        ordered_ml = int(row["ordered_ml"])
+        gender = row["gender"]
+        price = int(row["price_10"]) if row["price_10"] > 0 else None
 
-        col_btn, col_name, col_gender, col_price, col_ordered, col_planned = st.columns(
-            [1, 4, 2, 2, 2, 2]
+        if ordered_ml > 0:
+            bg_color = "#1f3b2d"
+        else:
+            bg_color = "#0e1117"
+
+        if view_mode == "Обзор":
+            right_text = f"{gender} · {price} ₽" if price else gender
+        else:  # "Моё"
+            right_text = f"{price} ₽ · {ordered_ml} мл" if price else f"{ordered_ml} мл"
+
+        st.markdown(
+            f"""
+            <div style="
+                display: flex;
+                align-items: center;
+                background-color: {bg_color};
+                padding: 10px 12px;
+                margin-bottom: 6px;
+                border-radius: 8px;
+                gap: 10px;
+            ">
+                <div style="
+                    flex: 1;
+                    font-weight: 500;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                ">
+                    {row["aroma_name"]}
+                </div>
+
+                <div style="
+                    white-space: nowrap;
+                    font-size: 0.9em;
+                    opacity: 0.85;
+                ">
+                    {right_text}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
-
-        with col_btn:
-            st.button(
-                "➕",
-                key=f"plus_{row_id}",
-                on_click=add_planned_ml,
-                args=(row_id,)
-            )
-
-        with col_name:
-            st.write(row["aroma_name"])
-
-        with col_gender:
-            st.write(row["gender"])
-        with col_price:
-            price = int(row["price_10"])
-            st.write(f"{price} ₽ / 10 мл" if price > 0 else "—")
-
-        with col_ordered:
-            st.write(f"{int(row['ordered_ml'])} мл")
-
-        with col_planned:
-            planned_ml = st.session_state.planned_ml.get(row_id, 0)
-            st.write(f"{planned_ml} мл")
-
-
 
 else:
     st.info("Введите имя, чтобы загрузить данные")
+
+
 
 
 
