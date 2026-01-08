@@ -300,6 +300,27 @@ if user_name:
         if st.session_state.open_row_id == row_id:
             st.markdown("⬇️ карточка аромата")
 
+            col_minus, col_info, col_plus = st.columns([1, 2, 1])
+
+            with col_minus:
+                if st.button("➖", key=f"minus_{row_id}"):
+                    current = st.session_state.planned_ml.get(row_id, 0)
+                    st.session_state.planned_ml[row_id] = max(0, current - 10)
+                    st.rerun()
+
+            with col_info:
+                st.markdown(
+                    f"""
+                    **План:** {st.session_state.planned_ml.get(row_id, 0)} мл  
+                    **Уже заказано:** {ordered_ml} мл
+                    """
+                )
+
+            with col_plus:
+                if st.button("➕", key=f"plus_{row_id}"):
+                    current = st.session_state.planned_ml.get(row_id, 0)
+                    st.session_state.planned_ml[row_id] = current + 10
+                    st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
