@@ -233,20 +233,18 @@ if user_name:
         unsafe_allow_html=True
     )
     st.markdown('<div class="search-filter-block">', unsafe_allow_html=True)
-    col_search, col_gender = st.columns([2, 3])
 
-    with col_search:
-        search_query = st.text_input(
-            "",
-            placeholder="🔍 Поиск аромата"
-        ).strip().lower()
+    search_query = st.text_input(
+        "",
+        placeholder="🔍 Поиск аромата"
+    ).strip().lower()
 
-    with col_gender:
-        gender_filter = st.multiselect(
-            "",
-            options=["жен", "уни", "муж"],
-            default=["жен", "уни", "муж"]
-        )
+    gender_filter = st.multiselect(
+        "",
+        options=["жен", "уни", "муж"],
+        default=["жен", "уни", "муж"]
+    )
+
     st.markdown('</div>', unsafe_allow_html=True)
     if search_query:
         v1_df = v1_df[
