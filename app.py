@@ -235,14 +235,15 @@ if user_name:
     st.markdown('<div class="search-filter-block">', unsafe_allow_html=True)
 
     search_query = st.text_input(
-        "",
-        placeholder="🔍 Поиск аромата"
+        "Поиск",
+        placeholder="Поиск",
+        label_visibility="collapsed"
     ).strip().lower()
-
-    gender_filter = st.multiselect(
-        "",
-        options=["жен", "уни", "муж"],
-        default=["жен", "уни", "муж"]
+    gender_filter = st.selectbox(
+        "Пол",
+        options=["Все", "жен", "уни", "муж"],
+        index=0,
+        label_visibility="collapsed"
     )
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -252,9 +253,8 @@ if user_name:
             .str.lower()
             .str.contains(search_query, na=False)
         ]
-
-    if gender_filter:
-        v1_df = v1_df[v1_df["gender"].isin(gender_filter)]
+    if gender_filter != "Все":
+        v1_df = v1_df[v1_df["gender"] == gender_filter]
 
     for _, row in v1_df.iterrows():
         ordered_ml = int(row["ordered_ml"])
