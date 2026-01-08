@@ -211,6 +211,11 @@ if user_name:
             margin-top: 6px;
             margin-bottom: 4px;
         }
+
+        .search-filter-block div[data-testid="element-container"] {
+            margin-bottom: 2px;
+        }
+
         </style>
         """,
         unsafe_allow_html=True
