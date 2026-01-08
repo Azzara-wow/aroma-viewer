@@ -196,6 +196,8 @@ search_query = ""
 
 if user_name and "planned_ml" not in st.session_state:
     st.session_state.planned_ml = {}
+if "open_row_id" not in st.session_state:
+    st.session_state.open_row_id = None
 
 if user_name:
     df_raw = load_data(SHEET_URL)
@@ -289,8 +291,18 @@ if user_name:
     """,
             unsafe_allow_html=True
         )
+        if st.button(" ", key=f"open_{row_id}"):
+            if st.session_state.open_row_id == row_id:
+                st.session_state.open_row_id = None
+            else:
+                st.session_state.open_row_id = row_id
+
+        if st.session_state.open_row_id == row_id:
+            st.markdown("⬇️ карточка аромата")
+
 
     st.markdown('</div>', unsafe_allow_html=True)
+
 else:
     st.info("Введите имя, чтобы загрузить данные")
 
