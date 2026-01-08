@@ -24,7 +24,23 @@ st.markdown(
         background-color: #0e1117;
         padding: 0.75rem 1rem;
         border-bottom: 1px solid #333;
+        
     }
+        div[data-baseweb="input"] input {
+        height: 34px;
+        font-size: 0.85rem;
+    }
+
+    div[data-baseweb="select"] {
+        min-height: 34px;
+        font-size: 0.8rem;
+    }
+
+    div[data-baseweb="tag"] {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+
     .list-container {
     padding-top: 10px;
     }
@@ -173,13 +189,6 @@ if user_name:
     df_raw = load_data(SHEET_URL)
     v1_df = prepare_v1_dataframe(df_raw, user_name)
 
-    if search_query:
-        v1_df = v1_df[
-            v1_df["aroma_name"]
-            .str.lower()
-            .str.contains(search_query, na=False)
-        ]
-
     current_sum, planned_sum = calculate_sums(v1_df)
 
     st.markdown(
@@ -195,7 +204,18 @@ if user_name:
         unsafe_allow_html=True
     )
     st.markdown('<div class="list-container">', unsafe_allow_html=True)
-
+    st.markdown(
+        """
+        <style>
+        .search-filter-block {
+            margin-top: 6px;
+            margin-bottom: 4px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown('<div class="search-filter-block">', unsafe_allow_html=True)
     col_search, col_gender = st.columns([2, 3])
 
     with col_search:
@@ -210,6 +230,7 @@ if user_name:
             options=["жен", "уни", "муж"],
             default=["жен", "уни", "муж"]
         )
+    st.markdown('</div>', unsafe_allow_html=True)
     if search_query:
         v1_df = v1_df[
             v1_df["aroma_name"]
