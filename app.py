@@ -40,7 +40,19 @@ st.markdown(
         font-size: 0.7rem;
         padding: 2px 6px;
     }
+    .search-filter-block {
+        margin-top: 6px;
+        margin-bottom: 4px;
+    }
 
+    .search-filter-block .stColumn {
+        padding-bottom: 0px;
+    }
+
+    .search-filter-block .stColumn > div {
+    margin-bottom: 2px !important;
+    }
+    
     .list-container {
     padding-top: 10px;
     }
