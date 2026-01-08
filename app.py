@@ -6,6 +6,13 @@ st.set_page_config(
     page_title="Закупка ароматов",
     layout="wide"
 )
+def normalize_name(value: str) -> str:
+    return (
+        value.strip()              # убираем пробелы по краям
+        .lower()                   # в нижний регистр
+        .replace("\u00a0", " ")     # неразрывные пробелы
+        .replace("  ", " ")         # двойные пробелы
+    )
 
 st.markdown(
     """
@@ -90,6 +97,11 @@ def prepare_v1_dataframe(
     """
     Приводит сырые данные из Google Sheets к формату v1
     """
+    # создаём мапу: нормализованное имя → оригинальное имя столбца
+    normalized_columns = {
+        normalize_name(col): col
+        for col in df.columns
+    }
 
     required_columns = [
         "Название",
@@ -103,8 +115,11 @@ def prepare_v1_dataframe(
         if col not in df.columns:
             raise ValueError(f"Отсутствует обязательный столбец: {col}")
 
-    if user_name not in df.columns:
+    if user_name in normalized_columns:
+        user_column = normalized_columns[user_name]
+    else:
         df[user_name] = 0
+        user_column = user_name
 
     v1_df = pd.DataFrame({
         "aroma_name": df["Название"],
@@ -112,7 +127,7 @@ def prepare_v1_dataframe(
         "price_10": df["10 гр"],
         "price_50": df["50 гр"],
         "price_100": df["100 гр"],
-        "ordered_ml": df[user_name].fillna(0),
+        "ordered_ml": df[user_column].fillna(0),
     })
     # --- важно: сбрасываем индекс ---
     v1_df = v1_df.reset_index(drop=True)
@@ -136,16 +151,20 @@ def prepare_v1_dataframe(
 
 st.title("🧴 Закупка ароматов")
 
-user_name = st.text_input(
+raw_user_name = st.text_input(
     "Введите имя (как в закупочном файле):",
     value=""
 )
+
+user_name = normalize_name(raw_user_name)
+
 
 view_mode = st.radio(
     "Отображение",
     ["Обзор", "Моё"],
     horizontal=True
 )
+search_query = ""
 
 if user_name and "planned_ml" not in st.session_state:
     st.session_state.planned_ml = {}
@@ -153,6 +172,13 @@ if user_name and "planned_ml" not in st.session_state:
 if user_name:
     df_raw = load_data(SHEET_URL)
     v1_df = prepare_v1_dataframe(df_raw, user_name)
+
+    if search_query:
+        v1_df = v1_df[
+            v1_df["aroma_name"]
+            .str.lower()
+            .str.contains(search_query, na=False)
+        ]
 
     current_sum, planned_sum = calculate_sums(v1_df)
 
@@ -169,6 +195,30 @@ if user_name:
         unsafe_allow_html=True
     )
     st.markdown('<div class="list-container">', unsafe_allow_html=True)
+
+    col_search, col_gender = st.columns([2, 3])
+
+    with col_search:
+        search_query = st.text_input(
+            "",
+            placeholder="🔍 Поиск аромата"
+        ).strip().lower()
+
+    with col_gender:
+        gender_filter = st.multiselect(
+            "",
+            options=["жен", "уни", "муж"],
+            default=["жен", "уни", "муж"]
+        )
+    if search_query:
+        v1_df = v1_df[
+            v1_df["aroma_name"]
+            .str.lower()
+            .str.contains(search_query, na=False)
+        ]
+
+    if gender_filter:
+        v1_df = v1_df[v1_df["gender"].isin(gender_filter)]
 
     for _, row in v1_df.iterrows():
         ordered_ml = int(row["ordered_ml"])
