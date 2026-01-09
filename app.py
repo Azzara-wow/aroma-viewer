@@ -184,13 +184,15 @@ raw_user_name = st.text_input(
 )
 user_name = normalize_name(raw_user_name)
 
-mode_col, anchor_col = st.columns([3, 2])
+col1, col2, col3 = st.columns(3)
 
-with mode_col:
+with col1:
     show_overview = st.checkbox("Обзор", value=True)
+
+with col2:
     show_my = st.checkbox("Моё", value=False)
 
-with anchor_col:
+with col3:
     show_only_perfume_section = st.checkbox("Духи", value=False)
 if user_name and "planned_ml" not in st.session_state:
     st.session_state.planned_ml = {}
