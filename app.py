@@ -191,7 +191,7 @@ raw_user_name = st.text_input(
 )
 user_name = normalize_name(raw_user_name)
 
-mode_col, anchor_col = st.columns([3, 2])
+mode_col, anchor_col = st.columns([4, 1])
 
 with mode_col:
     view_mode = st.radio(
@@ -267,7 +267,7 @@ if user_name:
 
 
     st.markdown('</div>', unsafe_allow_html=True)
-    generate_message = st.button("📩 Сформировать сообщение")
+    generate_message = st.button("Сформировать сообщение")
     if generate_message:
         # 1. Определяем: заказ или добор
         is_reorder = any(v > 0 for v in v1_df["ordered_ml"])
@@ -392,38 +392,22 @@ if user_name:
             )
         if st.session_state.open_row_id == row_id:
             st.markdown("---")
-
-            st.markdown(f"**Набрано:** {row.get('total_collected', '—')}")
-            st.markdown(f"**Уже заказано:** {ordered_ml}")
             aroma_name = row["aroma_name"]
-            link = f"https://www.fragrantica.ru/search/?q={aroma_name.replace(' ', '%20')}"
-
-            st.markdown(f"[🔗 Fragrantica]({link})")
-
             col_input, col_info = st.columns([2, 1])
 
-            with col_input:
-                current_value = st.session_state.planned_ml.get(row_id, 0)
+            current_value = st.session_state.planned_ml.get(row_id, 0)
 
-                new_value = st.number_input(
-                    "Количество",
-                    min_value=0,
-                    value=current_value,
-                    step=1,
-                    key=f"input_{row_id}",
-                )
+            new_value = st.number_input(
+                "Количество",
+                min_value=0,
+                value=current_value,
+                step=1,
+                key=f"input_{row_id}",
+            )
 
-                if new_value != current_value:
-                    st.session_state.planned_ml[row_id] = new_value
-                    st.rerun()
-
-            with col_info:
-                st.markdown(
-                    f"""
-                    **План:** {st.session_state.planned_ml.get(row_id, 0)}  
-                    **Уже заказано:** {ordered_ml}
-                    """
-                )
+            if new_value != current_value:
+                st.session_state.planned_ml[row_id] = new_value
+                st.rerun()
 
 
     st.markdown('</div>', unsafe_allow_html=True)
