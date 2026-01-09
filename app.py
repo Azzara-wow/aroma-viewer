@@ -102,15 +102,20 @@ def extract_first_valid_number(row: pd.Series) -> float | None:
 
 
 def calculate_sums(df: pd.DataFrame) -> tuple[float, float]:
-    current_sum = (df["ordered_ml"] / 10 * df["price"]).sum()
+    # ordered_ml и price приводим к числам
+    ordered = pd.to_numeric(df["ordered_ml"], errors="coerce").fillna(0)
+    price = pd.to_numeric(df["price"], errors="coerce").fillna(0)
 
-    planned_sum = 0
+    current_sum = (ordered / 10 * price).sum()
+
+    planned_sum = 0.0
     for _, row in df.iterrows():
         row_id = row["row_id"]
         planned_ml = st.session_state.planned_ml.get(row_id, 0)
-        planned_sum += (planned_ml / 10) * row["price"]
+        planned_sum += (planned_ml / 10) * float(row["price"])
 
     return current_sum, planned_sum
+
 
 def add_planned_ml(row_id: int):
     st.session_state.planned_ml[row_id] = (
@@ -195,6 +200,10 @@ if "open_row_id" not in st.session_state:
 if user_name:
     df_raw = load_data(SHEET_URL)
     v1_df = prepare_v1_dataframe(df_raw, user_name)
+    v1_df["ordered_ml"] = pd.to_numeric(
+        v1_df["ordered_ml"],
+        errors="coerce"
+    ).fillna(0)
 
     if show_my and not show_overview:
         v1_df = v1_df[v1_df["ordered_ml"] > 0]
