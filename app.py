@@ -13,6 +13,30 @@ def normalize_name(value: str) -> str:
         .replace("\u00a0", " ")     # неразрывные пробелы
         .replace("  ", " ")         # двойные пробелы
     )
+# ===============================
+# НАСТРОЙКИ РАЗРАБОТЧИКА
+# Менять ТОЛЬКО здесь
+# ===============================
+
+# Google Sheets
+SHEET_URL = "https://docs.google.com/spreadsheets/d/12VphWS6CAQE4vMLNY9wOdSooIopiSbuKjIZv07zJzL0/edit?gid=0#gid=0"
+
+# Тексты для сообщений в Telegram
+ORDER_TAGS = "#Luziянварь"
+REORDER_TAGS = "#Luziянварь #добор"
+
+# НАСТРОЙКИ СВЕТОМУЗЫКИ
+# ===============================
+
+ENABLE_LIGHTSHOW = False    # True включать ТОЛЬКО в последний день, False выключить
+
+TOTAL_REQUIRED_ML = 100    # при этом количестве тревоги нет
+WARNING_THRESHOLD = 70      # начинаем волноваться
+CRITICAL_THRESHOLD = 30     # паника
+# ЧТОБЫ У МЕНЯ НЕ УМЕР ПАЛЕЦ
+# ===============================
+SECTION_ANCHOR_KEYWORD = "Al Rehab Choco Musk"
+
 
 st.markdown(
     """
@@ -70,10 +94,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1lBJoT4Wws6FHAt91G3ojeTycdYILBDw76M8o_9bept8/edit?gid=0#gid=0"
-
-
 def make_csv_url(sheet_url: str) -> str:
     """
     Превращает обычную ссылку Google Sheets в CSV-ссылку
@@ -99,16 +119,25 @@ def load_data(sheet_url: str) -> pd.DataFrame:
     df = pd.read_csv(csv_url, engine="python")
     return df
 
+def extract_first_valid_number(row: pd.Series) -> float | None:
+    for value in row:
+        try:
+            num = float(str(value).replace(",", "."))
+            if num > 0:
+                return num
+        except (ValueError, TypeError):
+            continue
+    return None
 
 
 def calculate_sums(df: pd.DataFrame) -> tuple[float, float]:
-    current_sum = (df["ordered_ml"] / 10 * df["price_10"]).sum()
+    current_sum = (df["ordered_ml"] / 10 * df["price"]).sum()
 
     planned_sum = 0
     for _, row in df.iterrows():
         row_id = row["row_id"]
         planned_ml = st.session_state.planned_ml.get(row_id, 0)
-        planned_sum += (planned_ml / 10) * row["price_10"]
+        planned_sum += (planned_ml / 10) * row["price"]
 
     return current_sum, planned_sum
 
@@ -131,17 +160,16 @@ def prepare_v1_dataframe(
         for col in df.columns
     }
 
-    required_columns = [
-        "Название",
-        "пол",
-        "10 гр",
-        "50 гр",
-        "100 гр",
-    ]
+    # --- ищем колонку с названием аромата гибко ---
+    name_column = None
 
-    for col in required_columns:
-        if col not in df.columns:
-            raise ValueError(f"Отсутствует обязательный столбец: {col}")
+    for col in df.columns:
+        if "название" in col.lower():
+            name_column = col
+            break
+
+    if name_column is None:
+        raise ValueError("Не удалось найти столбец с названием аромата")
 
     if user_name in normalized_columns:
         user_column = normalized_columns[user_name]
@@ -150,23 +178,23 @@ def prepare_v1_dataframe(
         user_column = user_name
 
     v1_df = pd.DataFrame({
-        "aroma_name": df["Название"],
-        "gender": df["пол"],
-        "price_10": df["10 гр"],
-        "price_50": df["50 гр"],
-        "price_100": df["100 гр"],
+        "aroma_name": df[name_column],
         "ordered_ml": df[user_column].fillna(0),
+        "total_collected": df["Набрано"].fillna(0) if "Набрано" in df.columns else 0,
     })
+    # вычисляем цену как первое валидное число в строке
+    v1_df["price"] = df.apply(extract_first_valid_number, axis=1).fillna(0)
+
     # --- важно: сбрасываем индекс ---
     v1_df = v1_df.reset_index(drop=True)
-    v1_df["price_10"] = (
-        v1_df["price_10"]
+    v1_df["price"] = (
+        v1_df["price"]
         .astype(str)
         .str.replace(r"[^\d.,]", "", regex=True)  # убираем ₽, пробелы, всё лишнее
         .str.replace(",", ".", regex=False)
     )
 
-    v1_df["price_10"] = pd.to_numeric(v1_df["price_10"], errors="coerce").fillna(0)
+    v1_df["price"] = pd.to_numeric(v1_df["price"], errors="coerce").fillna(0)
 
     # --- служебный идентификатор строки ---
     v1_df["row_id"] = v1_df.index
@@ -186,12 +214,21 @@ raw_user_name = st.text_input(
 
 user_name = normalize_name(raw_user_name)
 
+mode_col, anchor_col = st.columns([3, 2])
 
-view_mode = st.radio(
-    "Отображение",
-    ["Обзор", "Моё"],
-    horizontal=True
-)
+with mode_col:
+    view_mode = st.radio(
+        "Отображение",
+        ["Обзор", "Моё"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+
+with anchor_col:
+    show_only_perfume_section = st.checkbox(
+        "Духи",
+        value=False
+    )
 search_query = ""
 
 if user_name and "planned_ml" not in st.session_state:
@@ -202,6 +239,18 @@ if "open_row_id" not in st.session_state:
 if user_name:
     df_raw = load_data(SHEET_URL)
     v1_df = prepare_v1_dataframe(df_raw, user_name)
+    if show_only_perfume_section:
+        anchor_index = None
+
+        for idx, row in v1_df.iterrows():
+            name = str(row["aroma_name"]).lower()
+
+            if SECTION_ANCHOR_KEYWORD.lower() in name:
+                anchor_index = idx
+                break
+
+        if anchor_index is not None:
+            v1_df = v1_df.iloc[anchor_index:]
 
     current_sum, planned_sum = calculate_sums(v1_df)
 
@@ -249,12 +298,46 @@ if user_name:
     )
 
     st.markdown('</div>', unsafe_allow_html=True)
+    generate_message = st.button("📩 Сформировать сообщение")
+    if generate_message:
+        # 1. Определяем: заказ или добор
+        is_reorder = any(v > 0 for v in v1_df["ordered_ml"])
+
+        tags_text = REORDER_TAGS if is_reorder else ORDER_TAGS
+
+        # 2. Собираем позиции из planned_ml
+        lines = []
+
+        for _, row in v1_df.iterrows():
+            row_id = row["row_id"]
+            ml = st.session_state.planned_ml.get(row_id, 0)
+
+            if ml > 0:
+                lines.append(f"• {row['aroma_name']} — {ml} мл")
+
+        # 3. Собираем сообщение
+        if lines:
+            message = (
+                    f"{tags_text}\n\n"
+                    f"{raw_user_name}\n\n"
+                    + "\n".join(lines)
+            )
+
+            st.text_area(
+                "Сообщение для Telegram",
+                value=message,
+                height=200
+            )
+        else:
+            st.info("В плане пока нет ароматов для сообщения.")
+
     if search_query:
         v1_df = v1_df[
             v1_df["aroma_name"]
             .str.lower()
             .str.contains(search_query, na=False)
         ]
+
     if gender_filter != "Все":
         v1_df = v1_df[v1_df["gender"] == gender_filter]
 
@@ -268,15 +351,31 @@ if user_name:
             if ordered_ml == 0 and planned_ml == 0:
                 continue  # ← просто пропускаем строку
 
-        gender = str(row["gender"])
-        price = int(row["price_10"]) if row["price_10"] > 0 else None
+        price = int(row["price"]) if row["price"] > 0 else None
 
-        bg_color = "#1f3b2d" if ordered_ml > 0 else "#0e1117"
-
-        if view_mode == "Обзор":
-            right_text = f"{gender} · {price} ₽" if price is not None else gender
+        # --- базовая подсветка: я это заказала ---
+        if ordered_ml > 0:
+            bg_color = "#1f3b2d"
         else:
-            right_text = f"{price} ₽ · {ordered_ml + planned_ml} мл" if price is not None else f"{ordered_ml + planned_ml} мл"
+            bg_color = "#0e1117"
+
+        # --- светомузыка (включается вручную в последний день) ---
+        if ENABLE_LIGHTSHOW and ordered_ml > 0:
+            total_collected = int(row["total_collected"])
+
+            # если всё набрано — тревоги нет
+            if total_collected < TOTAL_REQUIRED_ML:
+                if CRITICAL_THRESHOLD > 0 and total_collected <= CRITICAL_THRESHOLD:
+                    bg_color = "#8b0000"  # CRITICAL
+                elif WARNING_THRESHOLD > 0 and total_collected <= WARNING_THRESHOLD:
+                    bg_color = "#ff8c00"  # WARNING
+
+        total_my_amount = ordered_ml + planned_ml
+
+        if price is not None:
+            right_text = f"{price} ₽ · {total_my_amount}"
+        else:
+            right_text = f"{total_my_amount}"
 #padding:6px 10px; margin-bottom:3px межстрочный интервал
         st.markdown(
             f"""
@@ -291,36 +390,47 @@ if user_name:
     """,
             unsafe_allow_html=True
         )
-        if st.button(" ", key=f"open_{row_id}"):
+        if st.button("▾", key=f"open_{row_id}"):
             if st.session_state.open_row_id == row_id:
                 st.session_state.open_row_id = None
             else:
                 st.session_state.open_row_id = row_id
 
         if st.session_state.open_row_id == row_id:
-            st.markdown("⬇️ карточка аромата")
+            st.markdown("---")
 
-            col_minus, col_info, col_plus = st.columns([1, 2, 1])
+            st.markdown(f"**Набрано:** {row.get('total_collected', '—')}")
+            st.markdown(f"**Уже заказано:** {ordered_ml}")
+            aroma_name = row["aroma_name"]
+            link = f"https://www.fragrantica.ru/search/?q={aroma_name.replace(' ', '%20')}"
 
-            with col_minus:
-                if st.button("➖", key=f"minus_{row_id}"):
-                    current = st.session_state.planned_ml.get(row_id, 0)
-                    st.session_state.planned_ml[row_id] = max(0, current - 10)
+            st.markdown(f"[🔗 Fragrantica]({link})")
+
+            col_input, col_info = st.columns([2, 1])
+
+            with col_input:
+                current_value = st.session_state.planned_ml.get(row_id, 0)
+
+                new_value = st.number_input(
+                    "Количество",
+                    min_value=0,
+                    value=current_value,
+                    step=1,
+                    key=f"input_{row_id}",
+                )
+
+                if new_value != current_value:
+                    st.session_state.planned_ml[row_id] = new_value
                     st.rerun()
 
             with col_info:
                 st.markdown(
                     f"""
-                    **План:** {st.session_state.planned_ml.get(row_id, 0)} мл  
-                    **Уже заказано:** {ordered_ml} мл
+                    **План:** {st.session_state.planned_ml.get(row_id, 0)}  
+                    **Уже заказано:** {ordered_ml}
                     """
                 )
 
-            with col_plus:
-                if st.button("➕", key=f"plus_{row_id}"):
-                    current = st.session_state.planned_ml.get(row_id, 0)
-                    st.session_state.planned_ml[row_id] = current + 10
-                    st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
 
