@@ -56,19 +56,7 @@ st.markdown(
         font-size: 0.7rem;
         padding: 2px 6px;
     }
-    .search-filter-block {
-        margin-top: -8px;
-        
-    }
-
-    .search-filter-block .stColumn {
-        padding-bottom: 0px;
-    }
-
-    .search-filter-block .stColumn > div {
-    margin-bottom: 2px !important;
-    }
-    
+ 
     .list-container {
     padding-top: 10px;
     }
@@ -191,23 +179,14 @@ raw_user_name = st.text_input(
 )
 user_name = normalize_name(raw_user_name)
 
-mode_col, anchor_col = st.columns([4, 1])
+mode_col, anchor_col = st.columns([3, 2])
 
 with mode_col:
-    view_mode = st.radio(
-        "Отображение",
-        ["Обзор", "Моё"],
-        horizontal=True,
-        label_visibility="collapsed"
-    )
+    show_overview = st.checkbox("Обзор", value=True)
+    show_my = st.checkbox("Моё", value=False)
 
 with anchor_col:
-    show_only_perfume_section = st.checkbox(
-        "Духи",
-        value=False
-    )
-search_query = ""
-
+    show_only_perfume_section = st.checkbox("Духи", value=False)
 if user_name and "planned_ml" not in st.session_state:
     st.session_state.planned_ml = {}
 if "open_row_id" not in st.session_state:
@@ -216,6 +195,9 @@ if "open_row_id" not in st.session_state:
 if user_name:
     df_raw = load_data(SHEET_URL)
     v1_df = prepare_v1_dataframe(df_raw, user_name)
+
+    if show_my and not show_overview:
+        v1_df = v1_df[v1_df["ordered_ml"] > 0]
     if show_only_perfume_section:
         anchor_index = None
 
@@ -240,33 +222,17 @@ if user_name:
     """,
         unsafe_allow_html=True
     )
-
-    st.markdown('<div class="list-container">', unsafe_allow_html=True)
-    st.markdown(
-        """
-        <style>
-        .search-filter-block {
-            margin-top: -4px;
-            margin-bottom: 4px;
-        }
-        .search-filter-block div[data-testid="element-container"] {
-            margin-bottom: 2px;
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-    st.markdown('<div class="search-filter-block">', unsafe_allow_html=True)
-
     search_query = st.text_input(
         "Поиск",
         placeholder="Поиск",
         label_visibility="collapsed"
     ).strip().lower()
-
-
-    st.markdown('</div>', unsafe_allow_html=True)
+    if search_query:
+        v1_df = v1_df[
+            v1_df["aroma_name"]
+            .str.lower()
+            .str.contains(search_query, na=False)
+        ]
     generate_message = st.button("Сформировать сообщение")
     if generate_message:
         # 1. Определяем: заказ или добор
@@ -300,23 +266,12 @@ if user_name:
         else:
             st.info("В плане пока нет ароматов для сообщения.")
 
-    if search_query:
-        v1_df = v1_df[
-            v1_df["aroma_name"]
-            .str.lower()
-            .str.contains(search_query, na=False)
-        ]
-
     for _, row in v1_df.iterrows():
         ordered_ml = int(row["ordered_ml"])
         row_id = row["row_id"]
         planned_ml = st.session_state.planned_ml.get(row_id, 0)
 
         # 🔥 РЕЖИМ "МОЁ"
-        if view_mode == "Моё":
-            if ordered_ml == 0 and planned_ml == 0:
-                continue  # ← просто пропускаем строку
-
         price = int(row["price"]) if row["price"] > 0 else None
 
         # --- базовая подсветка: я это заказала ---
@@ -343,58 +298,17 @@ if user_name:
         else:
             right_text = f"{total_my_amount}"
 
-        col_btn, col_text = st.columns([0.6, 9.4])
-
-        with col_btn:
-            clicked = st.button(
-                "▸",
-                key=f"row_toggle_{row_id}",
-            )
-
-        with col_text:
-            st.markdown(
-                f"""
-                <div style="
-                    background-color:{bg_color};
-                    padding:4px 8px;
-                    margin-bottom:4px;
-                    border-radius:8px;
-                    display:flex;
-                    align-items:center;
-                    justify-content:space-between;
-                    gap:8px;
-                ">
-                    <div style="
-                        flex:1;
-                        font-size:0.9em;
-                        line-height:1.2;
-                        white-space:nowrap;
-                        overflow:hidden;
-                        text-overflow:ellipsis;
-                    ">
-                        {html.escape(str(row["aroma_name"]))}
-                    </div>
-                    <div style="
-                        white-space:nowrap;
-                        font-size:0.85em;
-                        opacity:0.85;
-                    ">
-                        {right_text}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        clicked = st.button(
+            f"{row['aroma_name']}    {right_text}",
+            key=f"row_{row_id}",
+            use_container_width=True,
+        )
 
         if clicked:
             st.session_state.open_row_id = (
                 None if st.session_state.open_row_id == row_id else row_id
             )
         if st.session_state.open_row_id == row_id:
-            st.markdown("---")
-            aroma_name = row["aroma_name"]
-            col_input, col_info = st.columns([2, 1])
-
             current_value = st.session_state.planned_ml.get(row_id, 0)
 
             new_value = st.number_input(
@@ -402,15 +316,12 @@ if user_name:
                 min_value=0,
                 value=current_value,
                 step=1,
-                key=f"input_{row_id}",
+                 key=f"input_{row_id}",
             )
 
             if new_value != current_value:
                 st.session_state.planned_ml[row_id] = new_value
                 st.rerun()
-
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     st.info("Введите имя, чтобы загрузить данные")
