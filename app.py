@@ -41,16 +41,8 @@ SECTION_ANCHOR_KEYWORD = "Al Rehab Choco Musk"
 st.markdown(
     """
     <style>
-    .sticky-header {
-        position: sticky;
-        top: 0;
-        z-index: 999;
-        background-color: #0e1117;
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #333;
-        
-    }
-        div[data-baseweb="input"] input {
+
+    div[data-baseweb="input"] input {
         height: 34px;
         font-size: 0.85rem;
     }
@@ -65,8 +57,8 @@ st.markdown(
         padding: 2px 6px;
     }
     .search-filter-block {
-        margin-top: 6px;
-        margin-bottom: 4px;
+        margin-top: -8px;
+        
     }
 
     .search-filter-block .stColumn {
@@ -80,16 +72,7 @@ st.markdown(
     .list-container {
     padding-top: 10px;
     }
-    .header-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 1rem;
-        font-size: 0.9rem;
-    }
-    .header-item {
-        flex: 1;
-        text-align: center;
-    }
+
     </style>
     """,
     unsafe_allow_html=True
@@ -203,15 +186,9 @@ def prepare_v1_dataframe(
     v1_df["link"] = ""
 
     return v1_df
-
-
-st.title("🧴 Закупка ароматов")
-
 raw_user_name = st.text_input(
-    "Введите имя (как в закупочном файле):",
-    value=""
+    "Введите имя (как в закупочном файле):"
 )
-
 user_name = normalize_name(raw_user_name)
 
 mode_col, anchor_col = st.columns([3, 2])
@@ -256,25 +233,22 @@ if user_name:
 
     st.markdown(
         f"""
-<div class="sticky-header">
-    <div class="header-row">
-        <div class="header-item">👤<br><b>{user_name}</b></div>
-        <div class="header-item">💰<br><b>{current_sum:.0f} ₽</b></div>
-        <div class="header-item">➕<br><b>{planned_sum:.0f} ₽</b></div>
+    <div style="font-size:0.9em; line-height:1.2; margin-bottom:6px;">
+    <b>{user_name.title()}</b><br>
+    Факт: <b>{current_sum:.0f} ₽</b> · План: <b>{planned_sum:.0f} ₽</b>
     </div>
-</div>
-""",
+    """,
         unsafe_allow_html=True
     )
+
     st.markdown('<div class="list-container">', unsafe_allow_html=True)
     st.markdown(
         """
         <style>
         .search-filter-block {
-            margin-top: 6px;
+            margin-top: -4px;
             margin-bottom: 4px;
         }
-
         .search-filter-block div[data-testid="element-container"] {
             margin-bottom: 2px;
         }
@@ -290,12 +264,7 @@ if user_name:
         placeholder="Поиск",
         label_visibility="collapsed"
     ).strip().lower()
-    gender_filter = st.selectbox(
-        "Пол",
-        options=["Все", "жен", "уни", "муж"],
-        index=0,
-        label_visibility="collapsed"
-    )
+
 
     st.markdown('</div>', unsafe_allow_html=True)
     generate_message = st.button("📩 Сформировать сообщение")
@@ -338,9 +307,6 @@ if user_name:
             .str.contains(search_query, na=False)
         ]
 
-    if gender_filter != "Все":
-        v1_df = v1_df[v1_df["gender"] == gender_filter]
-
     for _, row in v1_df.iterrows():
         ordered_ml = int(row["ordered_ml"])
         row_id = row["row_id"]
@@ -376,26 +342,54 @@ if user_name:
             right_text = f"{price} ₽ · {total_my_amount}"
         else:
             right_text = f"{total_my_amount}"
-#padding:6px 10px; margin-bottom:3px межстрочный интервал
-        st.markdown(
-            f"""
-    <div style="background-color:{bg_color}; padding:6px 10px; margin-bottom:3px; border-radius:8px; display:flex; align-items:center; gap:10px;">
-        <div style="flex:1; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-            {row["aroma_name"]}
-        </div>
-        <div style="white-space:nowrap; font-size:0.9em; opacity:0.85;">
-            {right_text}
-        </div>
-    </div>
-    """,
-            unsafe_allow_html=True
-        )
-        if st.button("▾", key=f"open_{row_id}"):
-            if st.session_state.open_row_id == row_id:
-                st.session_state.open_row_id = None
-            else:
-                st.session_state.open_row_id = row_id
 
+        col_btn, col_text = st.columns([0.6, 9.4])
+
+        with col_btn:
+            clicked = st.button(
+                "▸",
+                key=f"row_toggle_{row_id}",
+            )
+
+        with col_text:
+            st.markdown(
+                f"""
+                <div style="
+                    background-color:{bg_color};
+                    padding:4px 8px;
+                    margin-bottom:4px;
+                    border-radius:8px;
+                    display:flex;
+                    align-items:center;
+                    justify-content:space-between;
+                    gap:8px;
+                ">
+                    <div style="
+                        flex:1;
+                        font-size:0.9em;
+                        line-height:1.2;
+                        white-space:nowrap;
+                        overflow:hidden;
+                        text-overflow:ellipsis;
+                    ">
+                        {html.escape(str(row["aroma_name"]))}
+                    </div>
+                    <div style="
+                        white-space:nowrap;
+                        font-size:0.85em;
+                        opacity:0.85;
+                    ">
+                        {right_text}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        if clicked:
+            st.session_state.open_row_id = (
+                None if st.session_state.open_row_id == row_id else row_id
+            )
         if st.session_state.open_row_id == row_id:
             st.markdown("---")
 
