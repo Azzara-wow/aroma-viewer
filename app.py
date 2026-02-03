@@ -19,11 +19,11 @@ def normalize_name(value: str) -> str:
 # ===============================
 
 # Google Sheets
-SHEET_URL = "https://docs.google.com/spreadsheets/d/12VphWS6CAQE4vMLNY9wOdSooIopiSbuKjIZv07zJzL0/edit?gid=0#gid=0"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1_f7IZpy7AfjO2gw_1DTwjBGq5DO51-sqhlQmgk9fon8/edit?gid=0#gid=0"
 
 # Тексты для сообщений в Telegram
-ORDER_TAGS = "#Luziянварь"
-REORDER_TAGS = "#Luziянварь #добор"
+ORDER_TAGS = "#парфюм2"
+REORDER_TAGS = "#парфюм2 #добор"
 
 # НАСТРОЙКИ СВЕТОМУЗЫКИ
 # ===============================
